@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  postgres:
+  db:
     image: postgres:16-alpine
-    container_name: NewsandVulSBE
+    container_name: threatintel_db
     restart: always
     environment:
       POSTGRES_USER: postgres
@@ -13,6 +13,22 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: threatintel_api
+    restart: always
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=threatintel_db;Username=postgres;Password=Kalpa2004@
+      # The NIST API key will automatically be read from your appsettings.json, 
+      # but it can also be overridden here:
+      # - NistApiKey=b6494056-a935-438b-a717-9428e920907c
 
 volumes:
   postgres_data:

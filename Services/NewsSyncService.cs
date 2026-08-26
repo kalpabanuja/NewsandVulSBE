@@ -78,7 +78,7 @@ public class NewsSyncService : BackgroundService
             _logger.LogInformation("Saved {AddedCount} new articles from The Hacker News.", addedArticles.Count);
             
             // Notify clients via SignalR
-            await _hubContext.Clients.All.SendAsync("ReceiveNewNews", addedArticles, stoppingToken);
+            await _hubContext.Clients.All.SendAsync("ReceiveNewArticle", addedArticles, stoppingToken);
         }
     }
 }

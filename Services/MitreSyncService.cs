@@ -92,7 +92,7 @@ public class MitreSyncService : BackgroundService
                 _logger.LogInformation("Added {AddedCount} new pending CVEs from MITRE.", added);
                 
                 // Notify clients via SignalR
-                await _hubContext.Clients.All.SendAsync("ReceiveNewVulnerabilities", newCveIds, stoppingToken);
+                await _hubContext.Clients.All.SendAsync("ReceiveNewCve", newCveIds, stoppingToken);
             }
         }
     }

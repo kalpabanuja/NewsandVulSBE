@@ -120,7 +120,7 @@ public class NistSyncService : BackgroundService
                             _logger.LogInformation("Successfully analyzed {CveId} from NIST.", vul.CveId);
                             
                             // Notify clients via SignalR
-                            await _hubContext.Clients.All.SendAsync("VulnerabilityAnalyzed", vul, stoppingToken);
+                            await _hubContext.Clients.All.SendAsync("ReceiveNewCve", vul, stoppingToken);
                         }
                     }
                 }
