@@ -119,6 +119,17 @@ app.MapGet("/api/sync/news", async (AppDbContext db, DateTime since) =>
 })
 .WithName("SyncNews");
 
+app.MapGet("/api/stats", async (AppDbContext db) =>
+{
+    var stats = new
+    {
+        Vulnerabilities = await db.Vulnerabilities.CountAsync(),
+        NewsArticles = await db.NewsArticles.CountAsync()
+    };
+    return Results.Ok(stats);
+})
+.WithName("GetStats");
+
 // --- SIMPLE UI DASHBOARD ---
 app.MapGet("/", () => 
 {
@@ -140,12 +151,27 @@ app.MapGet("/", () =>
         .news-title { font-weight: bold; color: #0275d8; }
         .item-meta { font-size: 0.85em; color: #6c757d; margin-top: 5px; }
         .status { padding: 10px; background-color: #d4edda; color: #155724; border-radius: 5px; margin-bottom: 20px; display: inline-block; font-weight: bold; }
+        .stats-panel { display: flex; gap: 20px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #17a2b8; min-width: 150px; }
+        .stat-value { font-size: 1.8rem; font-weight: bold; color: #343a40; margin-bottom: 5px; }
+        .stat-label { font-size: 0.9rem; color: #6c757d; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body>
     <h1>🛡️ Threat Intel Backend</h1>
     <div class=""status"">✅ Server is running and monitoring data streams</div>
     <p>Below is a live preview of the recent data available in the PostgreSQL database.</p>
+
+    <div class=""stats-panel"" id=""stats-container"">
+        <div class=""stat-card"">
+            <div class=""stat-value"" id=""count-vuln"">...</div>
+            <div class=""stat-label"">Vulnerabilities</div>
+        </div>
+        <div class=""stat-card"">
+            <div class=""stat-value"" id=""count-news"">...</div>
+            <div class=""stat-label"">News Articles</div>
+        </div>
+    </div>
 
     <div class=""dashboard"">
         <div class=""panel"">
@@ -161,6 +187,12 @@ app.MapGet("/", () =>
     <script>
         async function loadData() {
             try {
+                // Fetch Stats
+                const statsRes = await fetch('/api/stats');
+                const stats = await statsRes.json();
+                document.getElementById('count-vuln').innerText = stats.vulnerabilities.toLocaleString();
+                document.getElementById('count-news').innerText = stats.newsArticles.toLocaleString();
+
                 // Fetch CVEs
                 const cveRes = await fetch('/api/vulnerabilities?limit=5');
                 const cves = await cveRes.json();
@@ -172,8 +204,8 @@ app.MapGet("/", () =>
                     cveContainer.innerHTML = cves.map(c => `
                         <div class=""item"">
                             <div class=""item-title"">${c.cveId || 'Unknown'}</div>
-                            <div>${c.description ? c.description.substring(0, 150) + '...' : 'No description'}</div>
-                            <div class=""item-meta"">Published: ${new Date(c.publishedDate).toLocaleString()}</div>
+                            <div>${c.description ? c.description.substring(0, 150) + '...' : 'No description available'}</div>
+                            <div class=""item-meta"">Published: ${c.publishedDate ? new Date(c.publishedDate).toLocaleString() : 'Date unknown'}</div>
                         </div>
                     `).join('');
                 }
@@ -189,7 +221,7 @@ app.MapGet("/", () =>
                     newsContainer.innerHTML = news.map(n => `
                         <div class=""item"">
                             <div class=""news-title"">${n.title || 'Untitled'}</div>
-                            <div class=""item-meta"">Published: ${new Date(n.publishedAt).toLocaleString()}</div>
+                            <div class=""item-meta"">Published: ${n.publishedAt ? new Date(n.publishedAt).toLocaleString() : 'Date unknown'}</div>
                         </div>
                     `).join('');
                 }
