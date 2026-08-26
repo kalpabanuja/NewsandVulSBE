@@ -119,4 +119,94 @@ app.MapGet("/api/sync/news", async (AppDbContext db, DateTime since) =>
 })
 .WithName("SyncNews");
 
+// --- SIMPLE UI DASHBOARD ---
+app.MapGet("/", () => 
+{
+    var html = @"<!DOCTYPE html>
+<html lang=""en"">
+<head>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+    <title>Threat Intel Backend Status</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; color: #343a40; }
+        h1 { border-bottom: 2px solid #007bff; padding-bottom: 10px; color: #0056b3; }
+        .dashboard { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
+        .panel { flex: 1; min-width: 300px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .panel h2 { margin-top: 0; font-size: 1.2rem; color: #495057; border-bottom: 1px solid #dee2e6; padding-bottom: 10px; }
+        .item { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #f1f3f5; }
+        .item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .item-title { font-weight: bold; color: #d9534f; }
+        .news-title { font-weight: bold; color: #0275d8; }
+        .item-meta { font-size: 0.85em; color: #6c757d; margin-top: 5px; }
+        .status { padding: 10px; background-color: #d4edda; color: #155724; border-radius: 5px; margin-bottom: 20px; display: inline-block; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🛡️ Threat Intel Backend</h1>
+    <div class=""status"">✅ Server is running and monitoring data streams</div>
+    <p>Below is a live preview of the recent data available in the PostgreSQL database.</p>
+
+    <div class=""dashboard"">
+        <div class=""panel"">
+            <h2>Recent Vulnerabilities (CVEs)</h2>
+            <div id=""cve-list"">Loading vulnerabilities...</div>
+        </div>
+        <div class=""panel"">
+            <h2>Recent Security News</h2>
+            <div id=""news-list"">Loading news...</div>
+        </div>
+    </div>
+
+    <script>
+        async function loadData() {
+            try {
+                // Fetch CVEs
+                const cveRes = await fetch('/api/vulnerabilities?limit=5');
+                const cves = await cveRes.json();
+                const cveContainer = document.getElementById('cve-list');
+                
+                if(cves.length === 0) {
+                    cveContainer.innerHTML = '<em>No vulnerabilities found in database yet. Wait for background sync.</em>';
+                } else {
+                    cveContainer.innerHTML = cves.map(c => `
+                        <div class=""item"">
+                            <div class=""item-title"">${c.cveId || 'Unknown'}</div>
+                            <div>${c.description ? c.description.substring(0, 150) + '...' : 'No description'}</div>
+                            <div class=""item-meta"">Published: ${new Date(c.publishedDate).toLocaleString()}</div>
+                        </div>
+                    `).join('');
+                }
+
+                // Fetch News
+                const newsRes = await fetch('/api/news?limit=5');
+                const news = await newsRes.json();
+                const newsContainer = document.getElementById('news-list');
+                
+                if(news.length === 0) {
+                    newsContainer.innerHTML = '<em>No news found in database yet. Wait for background sync.</em>';
+                } else {
+                    newsContainer.innerHTML = news.map(n => `
+                        <div class=""item"">
+                            <div class=""news-title"">${n.title || 'Untitled'}</div>
+                            <div class=""item-meta"">Published: ${new Date(n.publishedAt).toLocaleString()}</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('cve-list').innerHTML = '<span style=""color:red"">Failed to connect to API.</span>';
+                document.getElementById('news-list').innerHTML = '<span style=""color:red"">Failed to connect to API.</span>';
+            }
+        }
+
+        // Load immediately and refresh every 10 seconds
+        loadData();
+        setInterval(loadData, 10000);
+    </script>
+</body>
+</html>";
+    return Results.Content(html, "text/html");
+});
+
 app.Run();
