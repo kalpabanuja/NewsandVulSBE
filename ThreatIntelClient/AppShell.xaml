@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="ThreatIntelClient.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:views="clr-namespace:ThreatIntelClient.Views"
+    Title="ThreatIntelClient">
+
+    <TabBar>
+        <Tab Title="Vulnerabilities">
+            <ShellContent Route="VulnerabilitiesPage" ContentTemplate="{DataTemplate views:VulnerabilitiesPage}" />
+        </Tab>
+        <Tab Title="News">
+            <ShellContent Route="NewsPage" ContentTemplate="{DataTemplate views:NewsPage}" />
+        </Tab>
+        <Tab Title="Updates">
+            <ShellContent Route="UpdatesPage" ContentTemplate="{DataTemplate views:UpdatesPage}" />
+        </Tab>
+        <Tab Title="Settings">
+            <ShellContent Route="SettingsPage" ContentTemplate="{DataTemplate views:SettingsPage}" />
+        </Tab>
+    </TabBar>
+
+</Shell>
