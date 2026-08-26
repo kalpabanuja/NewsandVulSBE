@@ -1,8 +1,25 @@
+using Microsoft.EntityFrameworkCore;
+using NewsandVulSBE.Data;
+using NewsandVulSBE.Hubs;
+using NewsandVulSBE.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddSignalR(); // Added SignalR
+
+// Register HttpClient for the background workers
+builder.Services.AddHttpClient();
+
+// Register PostgreSQL DbContext
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Register Background Services
+builder.Services.AddHostedService<MitreSyncService>();
+builder.Services.AddHostedService<NistSyncService>();
+builder.Services.AddHostedService<NewsSyncService>();
 
 var app = builder.Build();
 
@@ -14,28 +31,32 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+// Map SignalR Hub
+app.MapHub<ThreatIntelHub>("/hubs/threatintel");
 
-app.MapGet("/weatherforecast", () =>
+// Minimal API Endpoints
+app.MapGet("/api/vulnerabilities", async (AppDbContext db, int page = 1, int pageSize = 50) =>
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+    var vulnerabilities = await db.Vulnerabilities
+        .OrderByDescending(v => v.PublishedDate ?? DateTime.UtcNow) // Sort newest first
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .ToListAsync();
+        
+    return Results.Ok(vulnerabilities);
 })
-.WithName("GetWeatherForecast");
+.WithName("GetVulnerabilities");
+
+app.MapGet("/api/news", async (AppDbContext db, int page = 1, int pageSize = 50) =>
+{
+    var news = await db.NewsArticles
+        .OrderByDescending(n => n.PublishedAt)
+        .Skip((page - 1) * pageSize)
+        .Take(pageSize)
+        .ToListAsync();
+        
+    return Results.Ok(news);
+})
+.WithName("GetNews");
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
