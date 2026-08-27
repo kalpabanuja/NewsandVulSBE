@@ -19,6 +19,7 @@ class Program
         Console.WriteLine("Starting Historical Vulnerability Sync from NIST NVD...");
         
         using var httpClient = new HttpClient();
+        httpClient.Timeout = TimeSpan.FromMinutes(5); // Increase timeout to 5 minutes for slow NIST responses
         httpClient.DefaultRequestHeaders.Add("User-Agent", "ThreatIntelDataSeeder/1.0");
         if (!string.IsNullOrEmpty(NistApiKey))
         {
