@@ -1,26 +1,25 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\wickr\\Documents\\.net\\NewsandVulSBE\\NewsandVulSBE.csproj": {}
+    "/app/NewsandVulSBE.csproj": {}
   },
   "projects": {
-    "C:\\Users\\wickr\\Documents\\.net\\NewsandVulSBE\\NewsandVulSBE.csproj": {
+    "/app/NewsandVulSBE.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\wickr\\Documents\\.net\\NewsandVulSBE\\NewsandVulSBE.csproj",
+        "projectUniqueName": "/app/NewsandVulSBE.csproj",
         "projectName": "NewsandVulSBE",
-        "projectPath": "C:\\Users\\wickr\\Documents\\.net\\NewsandVulSBE\\NewsandVulSBE.csproj",
-        "packagesPath": "C:\\Users\\wickr\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\wickr\\Documents\\.net\\NewsandVulSBE\\obj\\",
+        "projectPath": "/app/NewsandVulSBE.csproj",
+        "packagesPath": "/root/.nuget/packages/",
+        "outputPath": "/app/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\wickr\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "/root/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
         ],
         "sources": {
-          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -85,7 +84,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.400/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.400/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.AspNetCore": "(,10.0.32767]",
             "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",
