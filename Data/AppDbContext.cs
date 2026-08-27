@@ -9,7 +9,8 @@ public class AppDbContext : DbContext
     {
     }
 
-    public DbSet<Vulnerability> Vulnerabilities { get; set; }
+    public DbSet<PendingVulnerability> PendingVulnerabilities { get; set; }
+    public DbSet<ReleasedVulnerability> ReleasedVulnerabilities { get; set; }
     public DbSet<NewsArticle> NewsArticles { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -17,7 +18,11 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         // Ensure CveId is unique
-        modelBuilder.Entity<Vulnerability>()
+        modelBuilder.Entity<PendingVulnerability>()
+            .HasIndex(v => v.CveId)
+            .IsUnique();
+
+        modelBuilder.Entity<ReleasedVulnerability>()
             .HasIndex(v => v.CveId)
             .IsUnique();
 

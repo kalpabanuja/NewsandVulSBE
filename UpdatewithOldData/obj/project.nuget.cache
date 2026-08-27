@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "WaMHxZYZ3aU=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\wickr\\Documents\\.net\\NewsandVulSBE\\UpdatewithOldData\\UpdatewithOldData.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\wickr\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\10.0.0\\microsoft.extensions.dependencyinjection.abstractions.10.0.0.nupkg.sha512",
+    "C:\\Users\\wickr\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\10.0.0\\microsoft.extensions.logging.abstractions.10.0.0.nupkg.sha512",
+    "C:\\Users\\wickr\\.nuget\\packages\\npgsql\\10.0.3\\npgsql.10.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}

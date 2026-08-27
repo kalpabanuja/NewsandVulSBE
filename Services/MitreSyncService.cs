@@ -75,12 +75,13 @@ public class MitreSyncService : BackgroundService
             int added = 0;
             foreach (var cveId in newCveIds)
             {
-                if (!dbContext.Vulnerabilities.Any(v => v.CveId == cveId))
+                if (!dbContext.PendingVulnerabilities.Any(v => v.CveId == cveId) && 
+                    !dbContext.ReleasedVulnerabilities.Any(v => v.CveId == cveId))
                 {
-                    dbContext.Vulnerabilities.Add(new Vulnerability
+                    dbContext.PendingVulnerabilities.Add(new PendingVulnerability
                     {
                         CveId = cveId,
-                        Status = "Pending Research"
+                        DiscoveredAt = DateTime.UtcNow
                     });
                     added++;
                 }

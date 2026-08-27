@@ -1,6 +1,8 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NewsandVulSBE.Data;
 using NewsandVulSBE.Hubs;
+using NewsandVulSBE.Models;
 using NewsandVulSBE.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,11 +25,12 @@ builder.Services.AddHostedService<NewsSyncService>();
 
 var app = builder.Build();
 
-// Automatically apply migrations to the database on startup (Great for Docker)
+// Automatically apply migrations and seed data on startup
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     dbContext.Database.Migrate();
+
 }
 
 // Configure the HTTP request pipeline.
@@ -45,13 +48,25 @@ app.MapHub<ThreatIntelHub>("/hubs/threats");
 
 app.MapGet("/api/vulnerabilities", async (AppDbContext db, int page = 1, int limit = 50) =>
 {
-    var vulnerabilities = await db.Vulnerabilities
-        .OrderByDescending(v => v.PublishedDate ?? DateTime.UtcNow) // Sort newest first
+    var released = await db.ReleasedVulnerabilities
+        .OrderByDescending(v => v.PublishedDate ?? DateTime.UtcNow)
         .Skip((page - 1) * limit)
         .Take(limit)
+        .Select(v => new VulnDto(v.CveId, v.Title, v.Description, v.CvssScore, v.Severity, v.PublishedDate, false, null))
         .ToListAsync();
+
+    var pendingLimit = Math.Max(0, limit - released.Count);
+    var pending = new List<VulnDto>();
+    if (pendingLimit > 0)
+    {
+        pending = await db.PendingVulnerabilities
+            .OrderByDescending(v => v.DiscoveredAt)
+            .Take(pendingLimit)
+            .Select(v => new VulnDto(v.CveId, null, null, null, null, null, true, v.LastCheckedWithNist))
+            .ToListAsync();
+    }
         
-    return Results.Ok(vulnerabilities);
+    return Results.Ok(released.Concat(pending));
 })
 .WithName("GetVulnerabilities");
 
@@ -60,13 +75,14 @@ app.MapGet("/api/vulnerabilities/search", async (AppDbContext db, string q) =>
     if (string.IsNullOrWhiteSpace(q)) return Results.BadRequest("Query parameter 'q' is required.");
 
     var queryLower = q.ToLower();
-    var vulnerabilities = await db.Vulnerabilities
+    var released = await db.ReleasedVulnerabilities
         .Where(v => v.CveId.ToLower().Contains(queryLower) || (v.Description != null && v.Description.ToLower().Contains(queryLower)))
         .OrderByDescending(v => v.PublishedDate ?? DateTime.UtcNow)
         .Take(50)
+        .Select(v => new VulnDto(v.CveId, v.Title, v.Description, v.CvssScore, v.Severity, v.PublishedDate, false, null))
         .ToListAsync();
         
-    return Results.Ok(vulnerabilities);
+    return Results.Ok(released);
 })
 .WithName("SearchVulnerabilities");
 
@@ -101,8 +117,9 @@ app.MapGet("/api/news/search", async (AppDbContext db, string q) =>
 
 app.MapGet("/api/sync/cves", async (AppDbContext db, DateTime startDate, DateTime endDate) =>
 {
-    var vulnerabilities = await db.Vulnerabilities
+    var vulnerabilities = await db.ReleasedVulnerabilities
         .Where(v => v.PublishedDate >= startDate && v.PublishedDate <= endDate)
+        .Select(v => new VulnDto(v.CveId, v.Title, v.Description, v.CvssScore, v.Severity, v.PublishedDate, false, null))
         .ToListAsync();
         
     return Results.Ok(vulnerabilities);
@@ -123,7 +140,8 @@ app.MapGet("/api/stats", async (AppDbContext db) =>
 {
     var stats = new
     {
-        Vulnerabilities = await db.Vulnerabilities.CountAsync(),
+        PendingVulnerabilities = await db.PendingVulnerabilities.CountAsync(),
+        ReleasedVulnerabilities = await db.ReleasedVulnerabilities.CountAsync(),
         NewsArticles = await db.NewsArticles.CountAsync()
     };
     return Results.Ok(stats);
@@ -164,8 +182,12 @@ app.MapGet("/", () =>
 
     <div class=""stats-panel"" id=""stats-container"">
         <div class=""stat-card"">
-            <div class=""stat-value"" id=""count-vuln"">...</div>
-            <div class=""stat-label"">Vulnerabilities</div>
+            <div class=""stat-value"" id=""count-pending-vuln"">...</div>
+            <div class=""stat-label"">Pending CVEs</div>
+        </div>
+        <div class=""stat-card"">
+            <div class=""stat-value"" id=""count-released-vuln"">...</div>
+            <div class=""stat-label"">Released CVEs</div>
         </div>
         <div class=""stat-card"">
             <div class=""stat-value"" id=""count-news"">...</div>
@@ -190,7 +212,8 @@ app.MapGet("/", () =>
                 // Fetch Stats
                 const statsRes = await fetch('/api/stats');
                 const stats = await statsRes.json();
-                document.getElementById('count-vuln').innerText = stats.vulnerabilities.toLocaleString();
+                document.getElementById('count-pending-vuln').innerText = stats.pendingVulnerabilities.toLocaleString();
+                document.getElementById('count-released-vuln').innerText = stats.releasedVulnerabilities.toLocaleString();
                 document.getElementById('count-news').innerText = stats.newsArticles.toLocaleString();
 
                 // Fetch CVEs
@@ -201,13 +224,22 @@ app.MapGet("/", () =>
                 if(cves.length === 0) {
                     cveContainer.innerHTML = '<em>No vulnerabilities found in database yet. Wait for background sync.</em>';
                 } else {
-                    cveContainer.innerHTML = cves.map(c => `
+                    cveContainer.innerHTML = cves.map(c => {
+                        let dateStr = '';
+                        if (c.isPending) {
+                            dateStr = 'Pending (LastChecked: ' + (c.lastChecked ? new Date(c.lastChecked).toLocaleString() : 'Never') + ')';
+                        } else {
+                            dateStr = c.publishedDate ? new Date(c.publishedDate).toLocaleString() : 'Date unknown';
+                        }
+                        
+                        return `
                         <div class=""item"">
                             <div class=""item-title"">${c.cveId || 'Unknown'}</div>
                             <div>${c.description ? c.description.substring(0, 150) + '...' : 'No description available'}</div>
-                            <div class=""item-meta"">Published: ${c.publishedDate ? new Date(c.publishedDate).toLocaleString() : 'Date unknown'}</div>
+                            <div class=""item-meta"">Published: ${dateStr}</div>
                         </div>
-                    `).join('');
+                        `;
+                    }).join('');
                 }
 
                 // Fetch News
@@ -242,3 +274,5 @@ app.MapGet("/", () =>
 });
 
 app.Run();
+
+public record VulnDto(string CveId, string? Title, string? Description, float? CvssScore, string? Severity, DateTime? PublishedDate, bool IsPending, DateTime? LastChecked);

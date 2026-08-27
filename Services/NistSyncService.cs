@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NewsandVulSBE.Data;
 using NewsandVulSBE.Hubs;
+using NewsandVulSBE.Models;
 using Microsoft.AspNetCore.SignalR;
 
 namespace NewsandVulSBE.Services;
@@ -49,8 +50,8 @@ public class NistSyncService : BackgroundService
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         // Find vulnerabilities that are pending and haven't been checked recently
-        var pendingVuls = await dbContext.Vulnerabilities
-            .Where(v => v.Status == "Pending Research" && (v.LastCheckedWithNist == null || v.LastCheckedWithNist < DateTime.UtcNow.AddHours(-1)))
+        var pendingVuls = await dbContext.PendingVulnerabilities
+            .Where(v => v.LastCheckedWithNist == null || v.LastCheckedWithNist < DateTime.UtcNow.AddHours(-1))
             .Take(10) // Batch of 10
             .ToListAsync(stoppingToken);
 
@@ -87,6 +88,7 @@ public class NistSyncService : BackgroundService
                         if (cveItems.GetArrayLength() > 0)
                         {
                             var cveData = cveItems[0].GetProperty("cve");
+                            var releasedVul = new ReleasedVulnerability { CveId = vul.CveId };
                             
                             if (cveData.TryGetProperty("descriptions", out var descs) && descs.GetArrayLength() > 0)
                             {
@@ -95,7 +97,7 @@ public class NistSyncService : BackgroundService
                                 {
                                     if (desc.GetProperty("lang").GetString() == "en")
                                     {
-                                        vul.Description = desc.GetProperty("value").GetString();
+                                        releasedVul.Description = desc.GetProperty("value").GetString();
                                         break;
                                     }
                                 }
@@ -106,21 +108,22 @@ public class NistSyncService : BackgroundService
                                 if (metrics.TryGetProperty("cvssMetricV31", out var cvssV31) && cvssV31.GetArrayLength() > 0)
                                 {
                                     var cvssData = cvssV31[0].GetProperty("cvssData");
-                                    vul.CvssScore = (float)cvssData.GetProperty("baseScore").GetDouble();
-                                    vul.Severity = cvssData.GetProperty("baseSeverity").GetString();
+                                    releasedVul.CvssScore = (float)cvssData.GetProperty("baseScore").GetDouble();
+                                    releasedVul.Severity = cvssData.GetProperty("baseSeverity").GetString();
                                 }
                             }
 
                             if (cveData.TryGetProperty("published", out var publishedDate))
                             {
-                                vul.PublishedDate = publishedDate.GetDateTime();
+                                releasedVul.PublishedDate = publishedDate.GetDateTime();
                             }
 
-                            vul.Status = "Analyzed";
+                            dbContext.ReleasedVulnerabilities.Add(releasedVul);
+                            dbContext.PendingVulnerabilities.Remove(vul);
                             _logger.LogInformation("Successfully analyzed {CveId} from NIST.", vul.CveId);
                             
                             // Notify clients via SignalR
-                            await _hubContext.Clients.All.SendAsync("ReceiveNewCve", vul, stoppingToken);
+                            await _hubContext.Clients.All.SendAsync("ReceiveNewCve", releasedVul, stoppingToken);
                         }
                     }
                 }
