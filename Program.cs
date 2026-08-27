@@ -46,9 +46,30 @@ app.MapHub<ThreatIntelHub>("/hubs/threats");
 
 // --- LIVE QUERIES ---
 
-app.MapGet("/api/vulnerabilities", async (AppDbContext db, int page = 1, int limit = 50) =>
+app.MapGet("/api/vulnerabilities", async (AppDbContext db, int page = 1, int limit = 50, int? year = null, string? query = null, string? severity = null) =>
 {
-    var released = await db.ReleasedVulnerabilities
+    var queryable = db.ReleasedVulnerabilities.AsQueryable();
+
+    if (year.HasValue)
+    {
+        queryable = queryable.Where(v => v.PublishedDate.HasValue && v.PublishedDate.Value.Year == year.Value);
+    }
+
+    if (!string.IsNullOrWhiteSpace(severity) && severity != "ALL")
+    {
+        // Ensure case-insensitive or matching format depending on DB
+        queryable = queryable.Where(v => v.Severity == severity);
+    }
+
+    if (!string.IsNullOrWhiteSpace(query))
+    {
+        var queryLower = query.ToLower();
+        queryable = queryable.Where(v => 
+            v.CveId.ToLower().Contains(queryLower) || 
+            (v.Description != null && v.Description.ToLower().Contains(queryLower)));
+    }
+
+    var released = await queryable
         .OrderByDescending(v => v.PublishedDate ?? DateTime.UtcNow)
         .Skip((page - 1) * limit)
         .Take(limit)
