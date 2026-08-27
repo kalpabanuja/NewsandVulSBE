@@ -80,6 +80,33 @@ app.MapGet("/api/vulnerabilities", async (AppDbContext db, int page = 1, int lim
 })
 .WithName("GetVulnerabilities");
 
+app.MapGet("/api/vulnerabilities/count", async (AppDbContext db, int? year = null, string? query = null, string? severity = null) =>
+{
+    var queryable = db.ReleasedVulnerabilities.AsQueryable();
+
+    if (year.HasValue)
+    {
+        queryable = queryable.Where(v => v.PublishedDate.HasValue && v.PublishedDate.Value.Year == year.Value);
+    }
+
+    if (!string.IsNullOrWhiteSpace(severity) && severity != "ALL")
+    {
+        queryable = queryable.Where(v => v.Severity == severity);
+    }
+
+    if (!string.IsNullOrWhiteSpace(query))
+    {
+        var queryLower = query.ToLower();
+        queryable = queryable.Where(v => 
+            v.CveId.ToLower().Contains(queryLower) || 
+            (v.Description != null && v.Description.ToLower().Contains(queryLower)));
+    }
+
+    int count = await queryable.CountAsync();
+    return Results.Ok(count);
+})
+.WithName("GetVulnerabilitiesCount");
+
 app.MapGet("/api/vulnerabilities/pending", async (AppDbContext db, int page = 1, int limit = 50) =>
 {
     var pending = await db.PendingVulnerabilities

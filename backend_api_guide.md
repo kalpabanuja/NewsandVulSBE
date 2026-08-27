@@ -65,4 +65,52 @@ public async Task<IActionResult> GetVulnerabilities(
 1. **Downloading Cache**: The frontend will loop through pages calling `/api/vulnerabilities?year=2024&page=1` etc. The backend MUST return only records from 2024.
 2. **Search Full Database**: When the user searches for "Log4j" with the full database toggle ON, the frontend will call `/api/vulnerabilities?query=Log4j`. The backend MUST execute that search across the entire database and return the results.
 
-Please implement these backend changes so the frontend cache syncing will function correctly!
+## Phase 2: Total Count Endpoint (Required for Pagination Math)
+
+To support the accurate "Page X of Total" counter and the new "Total Results" UI box when searching the full database, your backend needs an endpoint that returns the total matching count for any given filters, WITHOUT pagination.
+
+### Required Endpoint
+
+Create a new endpoint at `/api/vulnerabilities/count` that accepts the exact same filter parameters as above:
+- `int? year`
+- `string? query`
+- `string? severity`
+
+### Example Implementation
+
+```csharp
+[HttpGet("count")]
+public async Task<IActionResult> GetVulnerabilitiesCount(
+    [FromQuery] int? year = null,
+    [FromQuery] string? query = null,
+    [FromQuery] string? severity = null)
+{
+    var queryable = _dbContext.Vulnerabilities.AsQueryable();
+
+    // 1. Filter by Year
+    if (year.HasValue)
+    {
+        queryable = queryable.Where(v => v.PublishedDate.HasValue && v.PublishedDate.Value.Year == year.Value);
+    }
+
+    // 2. Filter by Severity
+    if (!string.IsNullOrWhiteSpace(severity) && severity != "ALL")
+    {
+        queryable = queryable.Where(v => v.Severity == severity);
+    }
+
+    // 3. Filter by Keyword (Query)
+    if (!string.IsNullOrWhiteSpace(query))
+    {
+        queryable = queryable.Where(v => 
+            v.CveId.Contains(query) || 
+            (v.Description != null && v.Description.Contains(query)));
+    }
+
+    // Return just the integer count
+    int count = await queryable.CountAsync();
+    return Ok(count);
+}
+```
+
+Please implement this new endpoint so the frontend pagination and results counter will function correctly!
