@@ -9,7 +9,7 @@ class Program
 {
     // Configuration
     // Update this if your database credentials differ
-    static string ConnectionString = "Host=localhost;Database=threatintel_db;Username=postgres;Password=Kalpa2004@";
+    static string ConnectionString = "Host=db;Database=threatintel_db;Username=postgres;Password=Kalpa2004@";
     
     // Using the user-provided NIST API Key
     static string NistApiKey = "b6494056-a935-438b-a717-9428e920907c";
