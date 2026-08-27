@@ -4,6 +4,7 @@ using NewsandVulSBE.Data;
 using NewsandVulSBE.Models;
 using NewsandVulSBE.Hubs;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace NewsandVulSBE.Services;
 
