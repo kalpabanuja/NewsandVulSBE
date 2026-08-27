@@ -39,7 +39,7 @@ class Program
         int startIndex = (int)(long)await countCmd.ExecuteScalarAsync();
         Console.WriteLine($"Found {startIndex} existing vulnerabilities. Resuming from index {startIndex}...");
 
-        int totalResults = 1; // Will be updated on first request
+        int totalResults = int.MaxValue; // Will be updated on first request
         int addedCount = 0;
 
         while (startIndex < totalResults)
