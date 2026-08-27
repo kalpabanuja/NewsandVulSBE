@@ -117,9 +117,10 @@ class Program
                     }
 
                     using var insertCmd = new NpgsqlCommand(
-                        "INSERT INTO \"ReleasedVulnerabilities\" (\"CveId\", \"Title\", \"Description\", \"CvssScore\", \"Severity\", \"PublishedDate\") " +
-                        "VALUES (@id, NULL, @desc, @score, @severity, @pub)", conn, transaction);
+                        "INSERT INTO \"ReleasedVulnerabilities\" (\"Id\", \"CveId\", \"Title\", \"Description\", \"CvssScore\", \"Severity\", \"PublishedDate\") " +
+                        "VALUES (@guid, @id, NULL, @desc, @score, @severity, @pub)", conn, transaction);
                     
+                    insertCmd.Parameters.AddWithValue("guid", Guid.NewGuid());
                     insertCmd.Parameters.AddWithValue("id", cveId);
                     insertCmd.Parameters.AddWithValue("desc", (object?)description ?? DBNull.Value);
                     insertCmd.Parameters.AddWithValue("score", (object?)cvssScore ?? DBNull.Value);
