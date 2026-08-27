@@ -11,7 +11,7 @@ This standalone C# console application retrieves all historical vulnerabilities 
 
 Open `Program.cs` in this folder and verify the two settings at the top of the script:
 
-1.  **`ConnectionString`**: This defaults to `Host=localhost;Database=threatintel_db;Username=postgres;Password=postgres`. If you changed your PostgreSQL password in Docker, update it here.
+1.  **`ConnectionString`**: This defaults to `Host=localhost;Database=threatintel_db;Username=postgres;Password=Kalpa2004@`. Note that the password is set to what you use in `docker-compose.yml`. If you run this script natively, `localhost` points to the database port exposed by docker-compose.
 2.  **`NistApiKey`**: Your provided API key (`b6494056-a935-438b-a717-9428e920907c`) is already baked in! This increases your rate limit from 5 requests/30s to 50 requests/30s, making the script run 10x faster.
 
 ## 🚀 How to Run
@@ -21,10 +21,18 @@ Open `Program.cs` in this folder and verify the two settings at the top of the s
     ```bash
     cd NewsandVulSBE/UpdatewithOldData
     ```
-3.  Run the script using the .NET CLI:
+3.  Run the script. If you **do not** have the .NET SDK installed on your VPS, you can seamlessly run it using Docker instead!
+
+    **Option A: If you have .NET installed**
     ```bash
     dotnet run
     ```
+
+    **Option B: Using Docker (Recommended if .NET is missing)**
+    ```bash
+    sudo docker run --rm -it --network host -v $(pwd):/app -w /app mcr.microsoft.com/dotnet/sdk:8.0 dotnet run
+    ```
+    *(The `--network host` flag allows the script inside the temporary container to connect to your database at `localhost:5432`)*
 
 The script will begin paginating through the NIST API, starting from index 0. It will print its progress to the console.
 
