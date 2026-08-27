@@ -34,7 +34,10 @@ class Program
         await conn.OpenAsync();
         Console.WriteLine("Connected to PostgreSQL database.");
 
-        int startIndex = 0;
+        using var countCmd = new NpgsqlCommand("SELECT COUNT(1) FROM \"ReleasedVulnerabilities\"", conn);
+        int startIndex = (int)(long)await countCmd.ExecuteScalarAsync();
+        Console.WriteLine($"Found {startIndex} existing vulnerabilities. Resuming from index {startIndex}...");
+
         int totalResults = 1; // Will be updated on first request
         int addedCount = 0;
 

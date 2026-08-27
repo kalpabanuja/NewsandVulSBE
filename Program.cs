@@ -55,20 +55,22 @@ app.MapGet("/api/vulnerabilities", async (AppDbContext db, int page = 1, int lim
         .Select(v => new VulnDto(v.CveId, v.Title, v.Description, v.CvssScore, v.Severity, v.PublishedDate, false, null))
         .ToListAsync();
 
-    var pendingLimit = Math.Max(0, limit - released.Count);
-    var pending = new List<VulnDto>();
-    if (pendingLimit > 0)
-    {
-        pending = await db.PendingVulnerabilities
-            .OrderByDescending(v => v.DiscoveredAt)
-            .Take(pendingLimit)
-            .Select(v => new VulnDto(v.CveId, null, null, null, null, null, true, v.LastCheckedWithNist))
-            .ToListAsync();
-    }
-        
-    return Results.Ok(released.Concat(pending));
+    return Results.Ok(released);
 })
 .WithName("GetVulnerabilities");
+
+app.MapGet("/api/vulnerabilities/pending", async (AppDbContext db, int page = 1, int limit = 50) =>
+{
+    var pending = await db.PendingVulnerabilities
+        .OrderByDescending(v => v.DiscoveredAt)
+        .Skip((page - 1) * limit)
+        .Take(limit)
+        .Select(v => new VulnDto(v.CveId, null, v.Description, null, null, null, true, v.LastCheckedWithNist))
+        .ToListAsync();
+
+    return Results.Ok(pending);
+})
+.WithName("GetPendingVulnerabilities");
 
 app.MapGet("/api/vulnerabilities/search", async (AppDbContext db, string q) =>
 {
@@ -197,7 +199,11 @@ app.MapGet("/", () =>
 
     <div class=""dashboard"">
         <div class=""panel"">
-            <h2>Recent Vulnerabilities (CVEs)</h2>
+            <h2>Pending Vulnerabilities (CVEs)</h2>
+            <div id=""pending-list"">Loading pending vulnerabilities...</div>
+        </div>
+        <div class=""panel"">
+            <h2>Recent Updated Vulnerabilities (CVEs)</h2>
             <div id=""cve-list"">Loading vulnerabilities...</div>
         </div>
         <div class=""panel"">
@@ -216,30 +222,38 @@ app.MapGet("/", () =>
                 document.getElementById('count-released-vuln').innerText = stats.releasedVulnerabilities.toLocaleString();
                 document.getElementById('count-news').innerText = stats.newsArticles.toLocaleString();
 
-                // Fetch CVEs
+                // Fetch Released CVEs
                 const cveRes = await fetch('/api/vulnerabilities?limit=5');
                 const cves = await cveRes.json();
                 const cveContainer = document.getElementById('cve-list');
                 
                 if(cves.length === 0) {
-                    cveContainer.innerHTML = '<em>No vulnerabilities found in database yet. Wait for background sync.</em>';
+                    cveContainer.innerHTML = '<em>No released vulnerabilities found yet.</em>';
                 } else {
-                    cveContainer.innerHTML = cves.map(c => {
-                        let dateStr = '';
-                        if (c.isPending) {
-                            dateStr = 'Pending (LastChecked: ' + (c.lastChecked ? new Date(c.lastChecked).toLocaleString() : 'Never') + ')';
-                        } else {
-                            dateStr = c.publishedDate ? new Date(c.publishedDate).toLocaleString() : 'Date unknown';
-                        }
-                        
-                        return `
+                    cveContainer.innerHTML = cves.map(c => `
                         <div class=""item"">
                             <div class=""item-title"">${c.cveId || 'Unknown'}</div>
                             <div>${c.description ? c.description.substring(0, 150) + '...' : 'No description available'}</div>
-                            <div class=""item-meta"">Published: ${dateStr}</div>
+                            <div class=""item-meta"">Published: ${c.publishedDate ? new Date(c.publishedDate).toLocaleString() : 'Date unknown'}</div>
                         </div>
-                        `;
-                    }).join('');
+                    `).join('');
+                }
+
+                // Fetch Pending CVEs
+                const pendingRes = await fetch('/api/vulnerabilities/pending?limit=5');
+                const pendingCves = await pendingRes.json();
+                const pendingContainer = document.getElementById('pending-list');
+                
+                if(pendingCves.length === 0) {
+                    pendingContainer.innerHTML = '<em>No pending vulnerabilities.</em>';
+                } else {
+                    pendingContainer.innerHTML = pendingCves.map(c => `
+                        <div class=""item"">
+                            <div class=""item-title"">${c.cveId || 'Unknown'}</div>
+                            <div>${c.description ? c.description.substring(0, 150) + '...' : 'No description available'}</div>
+                            <div class=""item-meta"">Pending (Last Checked: ${c.lastChecked ? new Date(c.lastChecked).toLocaleString() : 'Never'})</div>
+                        </div>
+                    `).join('');
                 }
 
                 // Fetch News
@@ -259,6 +273,7 @@ app.MapGet("/", () =>
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
+                document.getElementById('pending-list').innerHTML = '<span style=""color:red"">Failed to connect to API.</span>';
                 document.getElementById('cve-list').innerHTML = '<span style=""color:red"">Failed to connect to API.</span>';
                 document.getElementById('news-list').innerHTML = '<span style=""color:red"">Failed to connect to API.</span>';
             }
