@@ -72,6 +72,66 @@ app.MapGet("/api/vulnerabilities/pending", async (AppDbContext db, int page = 1,
 })
 .WithName("GetPendingVulnerabilities");
 
+app.MapGet("/api/vulnerabilities/{cveId}", async (AppDbContext db, IHttpClientFactory httpClientFactory, string cveId) =>
+{
+    var vul = await db.ReleasedVulnerabilities.FirstOrDefaultAsync(v => v.CveId == cveId);
+    if (vul == null)
+    {
+        return Results.NotFound(new { Message = "Vulnerability not found in released database." });
+    }
+
+    if (string.IsNullOrEmpty(vul.RawNistJson))
+    {
+        // Smart Fallback: Fetch missing JSON from NIST
+        try
+        {
+            var client = httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Add("User-Agent", "NewsandVulSBE-Agent");
+            
+            var url = $"https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={cveId}";
+            var response = await client.GetAsync(url);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(content);
+                var root = doc.RootElement;
+                
+                var resultsPerPage = root.GetProperty("resultsPerPage").GetInt32();
+                if (resultsPerPage > 0)
+                {
+                    var cveItems = root.GetProperty("vulnerabilities");
+                    if (cveItems.GetArrayLength() > 0)
+                    {
+                        var cveData = cveItems[0].GetProperty("cve");
+                        vul.RawNistJson = cveData.GetRawText();
+                        await db.SaveChangesAsync();
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Smart fallback failed for {cveId}: {ex.Message}");
+            // Continue without raw JSON if fetching fails
+        }
+    }
+
+    var detailedVul = new DetailedVulnDto(
+        vul.CveId,
+        vul.Title,
+        vul.Description,
+        vul.CvssScore,
+        vul.Severity,
+        vul.PublishedDate,
+        $"https://nvd.nist.gov/vuln/detail/{vul.CveId}",
+        vul.RawNistJson != null ? JsonSerializer.Deserialize<JsonElement>(vul.RawNistJson) : null
+    );
+
+    return Results.Ok(detailedVul);
+})
+.WithName("GetVulnerabilityDetails");
+
 app.MapGet("/api/vulnerabilities/search", async (AppDbContext db, string q) =>
 {
     if (string.IsNullOrWhiteSpace(q)) return Results.BadRequest("Query parameter 'q' is required.");
@@ -291,3 +351,5 @@ app.MapGet("/", () =>
 app.Run();
 
 public record VulnDto(string CveId, string? Title, string? Description, float? CvssScore, string? Severity, DateTime? PublishedDate, bool IsPending, DateTime? LastChecked);
+
+public record DetailedVulnDto(string CveId, string? Title, string? Description, float? CvssScore, string? Severity, DateTime? PublishedDate, string OfficialUrl, object? RawNistData);

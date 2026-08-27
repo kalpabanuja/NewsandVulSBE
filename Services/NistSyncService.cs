@@ -88,7 +88,10 @@ public class NistSyncService : BackgroundService
                         if (cveItems.GetArrayLength() > 0)
                         {
                             var cveData = cveItems[0].GetProperty("cve");
-                            var releasedVul = new ReleasedVulnerability { CveId = vul.CveId };
+                            var releasedVul = new ReleasedVulnerability { 
+                                CveId = vul.CveId,
+                                RawNistJson = cveData.GetRawText()
+                            };
                             
                             if (cveData.TryGetProperty("descriptions", out var descs) && descs.GetArrayLength() > 0)
                             {

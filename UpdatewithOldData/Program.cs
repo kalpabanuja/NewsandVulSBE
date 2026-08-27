@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Npgsql;
+using NpgsqlTypes;
 using System.Threading;
 
 class Program
@@ -121,8 +122,8 @@ class Program
                     }
 
                     using var insertCmd = new NpgsqlCommand(
-                        "INSERT INTO \"ReleasedVulnerabilities\" (\"Id\", \"CveId\", \"Title\", \"Description\", \"CvssScore\", \"Severity\", \"PublishedDate\") " +
-                        "VALUES (@guid, @id, NULL, @desc, @score, @severity, @pub)", conn, transaction);
+                        "INSERT INTO \"ReleasedVulnerabilities\" (\"Id\", \"CveId\", \"Title\", \"Description\", \"CvssScore\", \"Severity\", \"PublishedDate\", \"RawNistJson\") " +
+                        "VALUES (@guid, @id, NULL, @desc, @score, @severity, @pub, @rawjson)", conn, transaction);
                     
                     insertCmd.Parameters.AddWithValue("guid", Guid.NewGuid());
                     insertCmd.Parameters.AddWithValue("id", cveId);
@@ -130,6 +131,10 @@ class Program
                     insertCmd.Parameters.AddWithValue("score", (object?)cvssScore ?? DBNull.Value);
                     insertCmd.Parameters.AddWithValue("severity", (object?)severity ?? DBNull.Value);
                     insertCmd.Parameters.AddWithValue("pub", (object?)publishedDate ?? DBNull.Value);
+                    
+                    var jsonParam = new NpgsqlParameter("rawjson", NpgsqlDbType.Jsonb);
+                    jsonParam.Value = cve.GetRawText();
+                    insertCmd.Parameters.Add(jsonParam);
                     
                     await insertCmd.ExecuteNonQueryAsync();
                     addedCount++;
