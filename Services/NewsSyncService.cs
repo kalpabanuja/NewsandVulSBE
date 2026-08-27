@@ -53,7 +53,10 @@ public class NewsSyncService : BackgroundService
 
         foreach (var item in feed.Items)
         {
-            var url = item.Links.FirstOrDefault()?.Uri.ToString() ?? "";
+            var url = item.Links.FirstOrDefault(l => l.RelationshipType == "alternate" || string.IsNullOrEmpty(l.RelationshipType))?.Uri.ToString() ?? "";
+            
+            // The Hacker News puts the image in an <enclosure> tag
+            var imageUrl = item.Links.FirstOrDefault(l => l.RelationshipType == "enclosure")?.Uri.ToString();
             
             // Check if article already exists
             if (!dbContext.NewsArticles.Any(n => n.Url == url))
@@ -62,6 +65,7 @@ public class NewsSyncService : BackgroundService
                 {
                     Title = item.Title.Text,
                     Url = url,
+                    ImageUrl = imageUrl,
                     Summary = item.Summary?.Text ?? string.Empty,
                     Source = "The Hacker News",
                     PublishedAt = item.PublishDate.UtcDateTime

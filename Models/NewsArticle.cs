@@ -15,6 +15,8 @@ public class NewsArticle
 
     public string? Summary { get; set; }
 
+    public string? ImageUrl { get; set; }
+
     [Required]
     [MaxLength(100)]
     public required string Source { get; set; } = "The Hacker News";

@@ -44,7 +44,7 @@ Base URL: `http://localhost:8080` (or whatever your VPS/Server IP is)
 
 ### Get News Articles
 - **Endpoint:** `GET /api/news`
-- **Description:** Returns a paginated list of scraped security news articles, ordered by newest first.
+- **Description:** Returns a paginated list of scraped security news articles, ordered by newest first. The returned objects now include an `imageUrl` property which is a direct link to the article's thumbnail. You can use this URL directly in an `<img src={article.imageUrl} />` tag on your frontend.
 - **Parameters (Query):**
   - `page` (int, optional) - Default: `1`
   - `limit` (int, optional) - Default: `50`

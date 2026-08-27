@@ -22,6 +22,7 @@ Stores threat intelligence news articles, summaries, and their respective source
 | **Id** | `uuid` | `not null` | Primary Key [cite: 1] |
 | **Title** | `text` | `not null` | The title of the news article [cite: 1] |
 | **Url** | `text` | `not null` | The URL of the news article (Unique) [cite: 1] |
+| **ImageUrl** | `text` | `nullable` | A direct link to the article's thumbnail image |
 | **Summary** | `text` | `nullable` | A summary of the article's contents [cite: 1] |
 | **Source** | `character varying(100)` | `not null` | The publisher or source of the article [cite: 1] |
 | **PublishedAt** | `timestamp with time zone` | `not null` | The date and time the article was published [cite: 1] |
