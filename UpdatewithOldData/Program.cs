@@ -36,6 +36,14 @@ class Program
         await conn.OpenAsync();
         Console.WriteLine("Connected to PostgreSQL database.");
 
+        if (args.Contains("--clear"))
+        {
+            Console.WriteLine("WARNING: --clear flag provided. Truncating ReleasedVulnerabilities table...");
+            using var clearCmd = new NpgsqlCommand("TRUNCATE TABLE \"ReleasedVulnerabilities\" CASCADE;", conn);
+            await clearCmd.ExecuteNonQueryAsync();
+            Console.WriteLine("Table cleared successfully.");
+        }
+
         using var countCmd = new NpgsqlCommand("SELECT COUNT(1) FROM \"ReleasedVulnerabilities\"", conn);
         int startIndex = (int)(long)await countCmd.ExecuteScalarAsync();
         Console.WriteLine($"Found {startIndex} existing vulnerabilities. Resuming from index {startIndex}...");
